@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>拍照解析二维码</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script> <!-- 引入 jsQR 库 -->
+</head>
+<body>
+    <div>
+        <button id="start">开始</button>
+        <button id="stop">停止</button>
+        <button id="snap">拍照</button>
+    </div>
+    <div>
+        <video autoplay controls id="id__stream"></video>
+    </div>
+    <div>
+        <canvas id="canvas" style="display:none;"></canvas> <!-- 隐藏canvas用于拍照 -->
+        <img id="photo" alt="拍照结果" style="display:none;"/> <!-- 显示拍照结果 -->
+    </div>
+    <div>
+        <p id="qrcode-result">二维码内容：<span id="qrcode-text"></span></p> <!-- 显示二维码解析结果 -->
+    </div>
+
+    <script>
+        // 只获取视频
+        let constraints = {audio: false, video: true}; 
+        let startBtn = document.getElementById('start');
+        let stopBtn = document.getElementById('stop');
+        let snapBtn = document.getElementById('snap');
+        let videoShowControl = document.getElementById('id__stream');
+        let canvas = document.getElementById('canvas');
+        let photo = document.getElementById('photo');
+        let context = canvas.getContext('2d');  // 获取canvas上下文
+        let qrcodeText = document.getElementById('qrcode-text');
+
+        startBtn.onclick = function() {
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(function(stream) {
+                    videoShowControl.srcObject = stream;
+                    window.stream = stream;
+                })
+                .catch(function(err) {
+                    console.log(err);
+                });
+        };
+
+        stopBtn.onclick = function() {
+            let stream = videoShowControl.srcObject;
+            let tracks = stream.getTracks();
+
+            tracks.forEach(function(track) {
+                track.stop();
+            });
+
+            videoShowControl.srcObject = null;
+        };
+
+        snapBtn.onclick = function() {
+            // 设置canvas的宽高与视频一致
+            canvas.width = videoShowControl.videoWidth;
+            canvas.height = videoShowControl.videoHeight;
+
+            // 将视频帧绘制到canvas上
+            context.drawImage(videoShowControl, 0, 0, canvas.width, canvas.height);
+
+            // 将canvas内容转为图片URL
+            let dataUrl = canvas.toDataURL('image/png');
+            
+            // 显示拍照结果
+            photo.style.display = 'block';
+            photo.src = dataUrl;
+
+            // 获取canvas的图像数据
+            let imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+
+            // 使用 jsQR 库解析二维码
+            let qrCode = jsQR(imageData.data, canvas.width, canvas.height);
+
+            if (qrCode) {
+                // 如果解析成功，显示二维码内容
+                qrcodeText.textContent = qrCode.data;
+            } else {
+                // 如果没有解析到二维码，显示未找到
+                qrcodeText.textContent = "未检测到二维码";
+            }
+        };
+    </script>
+</body>
+</html>
